@@ -36,6 +36,13 @@ def add(a: int, b: int) -> int:
     """Add two numbers"""
     return a + b
 
+# 获取天气情况
+@mcp.tool()
+def get_weather(location: str) -> str:
+    """获取指定地区的天气情况"""
+    return "天气晴,12~25摄氏度,西南风3到4级"
+
+
 
 # ----------------------- resorces ---------------------------
 
