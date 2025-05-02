@@ -19,6 +19,21 @@ def get_system_overview() -> dict:
     mem = psutil.virtual_memory()
     load1, load5, load15 = os.getloadavg()
     page_cache = psutil.swap_memory().sin  # 近似PageCache
+    # 获取所有磁盘分区的使用情况
+    disk_usages = []
+    for part in psutil.disk_partitions():
+        try:
+            usage = psutil.disk_usage(part.mountpoint)
+            disk_usages.append({
+                "device": part.device,
+                "mountpoint": part.mountpoint,
+                "total": usage.total,
+                "used": usage.used,
+                "free": usage.free,
+                "percent": usage.percent
+            })
+        except Exception:
+            continue
     return {
         "cpu_percent": psutil.cpu_percent(),
         "cpu_user_percent": cpu_times.user,
@@ -31,6 +46,7 @@ def get_system_overview() -> dict:
         "memory_percent": mem.percent,
         "process_count": len(psutil.pids()),
         "page_cache": page_cache,
+        "disk_usages": disk_usages,
     }
 
 @mcp.tool()
