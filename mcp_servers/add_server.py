@@ -6,7 +6,7 @@ from fastmcp.prompts import Message,UserMessage, AssistantMessage
 from fastmcp import Context, FastMCP
 
 # Create an MCP server
-mcp = FastMCP("Demo",port = 9999)
+mcp = FastMCP("Demo",host = "192.168.124.25",port = 9999)
 
 # ----------------------- tools ---------------------------
 
