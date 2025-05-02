@@ -23,6 +23,11 @@ env/
 ENV/
 .env
 
+# Virtual environments
+bin/
+lib/
+pyvenv.cfg
+
 # System files
 .DS_Store
 
