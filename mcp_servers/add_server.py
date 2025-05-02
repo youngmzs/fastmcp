@@ -52,7 +52,7 @@ def get_system_overview() -> dict:
 @mcp.tool()
 def get_top_processes() -> dict:
     """
-    获取CPU和内存使用率最高的前十个进程及其使用率。
+    获取CPU使用率最高的前五个进程及其使用率。
     """
     processes = []
     for p in psutil.process_iter(['pid', 'name', 'cpu_percent', 'memory_percent']):
@@ -60,11 +60,9 @@ def get_top_processes() -> dict:
             processes.append(p.info)
         except Exception:
             continue
-    top_cpu = sorted(processes, key=lambda x: x['cpu_percent'], reverse=True)[:10]
-    top_mem = sorted(processes, key=lambda x: x['memory_percent'], reverse=True)[:10]
+    top_cpu = sorted(processes, key=lambda x: x['cpu_percent'], reverse=True)[:5]
     return {
-        "top_cpu_processes": top_cpu,
-        "top_memory_processes": top_mem
+        "top_5_processes": top_cpu,
     }
 
 # ----------------------- prompts ---------------------------
