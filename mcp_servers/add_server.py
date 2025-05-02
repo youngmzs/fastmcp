@@ -1,123 +1,62 @@
 # server.py
-import httpx
 from fastmcp import FastMCP
-from pydantic import BaseModel
 from fastmcp.prompts import Message,UserMessage, AssistantMessage
 from fastmcp import Context, FastMCP
+import psutil
+import os
 
 # Create an MCP server
-mcp = FastMCP("Demo",host = "192.168.124.25",port = 9999)
+mcp = FastMCP("DifyMcp",host = "192.168.124.25",port = 9999)
 
 # ----------------------- tools ---------------------------
 
-class UserInfo(BaseModel):
-    user_id: int
-    notify: bool = False
+@mcp.tool()
+def get_system_overview() -> dict:
+    """
+    获取系统总体信息，包括CPU、内存、负载、进程数、PageCache大小。
+    """
+    cpu_times = psutil.cpu_times_percent()
+    mem = psutil.virtual_memory()
+    load1, load5, load15 = os.getloadavg()
+    page_cache = psutil.swap_memory().sin  # 近似PageCache
+    return {
+        "cpu_percent": psutil.cpu_percent(),
+        "cpu_user_percent": cpu_times.user,
+        "cpu_system_percent": cpu_times.system,
+        "cpu_cores": psutil.cpu_count(),
+        "load1": load1,
+        "load5": load5,
+        "load15": load15,
+        "total_memory": mem.total,
+        "memory_percent": mem.percent,
+        "process_count": len(psutil.pids()),
+        "page_cache": page_cache,
+    }
 
 @mcp.tool()
-async def send_notification(user: UserInfo, message: str) -> dict:
-    """Sends a notification to a user if requested."""
-    if user.notify:
-        # Simulate sending notification
-        print(f"Notifying user {user.user_id}: {message}")
-        return {"status": "sent", "user_id": user.user_id}
-    return {"status": "skipped", "user_id": user.user_id}
-
-@mcp.tool()
-def get_stock_price(ticker: str) -> float:
-    """Gets the current price for a stock ticker."""
-    # Replace with actual API call
-    prices = {"AAPL": 180.50, "GOOG": 140.20}
-    return prices.get(ticker.upper(), 0.0)
-
-# Add an addition tool
-@mcp.tool()
-def add(a: int, b: int) -> int:
-    """Add two numbers"""
-    return a + b
-
-# 获取天气情况
-@mcp.tool()
-def get_weather(location: str) -> str:
-    """获取指定地区的天气情况"""
-    return "天气晴,12~25摄氏度,西南风3到4级"
-
-
-
-# ----------------------- resorces ---------------------------
-
-# Add a dynamic greeting resource
-@mcp.resource("greeting://{name}")
-def get_greeting(name: str) -> str:
-    """Get a personalized greeting"""
-    return f"Hello, {name}!"
-
-
-# Static resource returning simple text
-@mcp.resource("config://app-version")
-def get_app_version() -> str:
-    """Returns the application version."""
-    return "v2.1.0"
-
-# Dynamic resource template expecting a 'user_id' from the URI
-@mcp.resource("db://users/{user_id}/email")
-async def get_user_email(user_id: str) -> str:
-    """Retrieves the email address for a given user ID."""
-    # Replace with actual database lookup
-    emails = {"123": "alice@example.com", "456": "bob@example.com"}
-    return emails.get(user_id, "not_found@example.com")
-
-# Resource returning JSON data
-@mcp.resource("data://product-categories")
-def get_categories() -> list[str]:
-    """Returns a list of available product categories."""
-    return ["Electronics", "Books", "Home Goods"]
-
+def get_top_processes() -> dict:
+    """
+    获取CPU和内存使用率最高的前十个进程及其使用率。
+    """
+    processes = []
+    for p in psutil.process_iter(['pid', 'name', 'cpu_percent', 'memory_percent']):
+        try:
+            processes.append(p.info)
+        except Exception:
+            continue
+    top_cpu = sorted(processes, key=lambda x: x['cpu_percent'], reverse=True)[:10]
+    top_mem = sorted(processes, key=lambda x: x['memory_percent'], reverse=True)[:10]
+    return {
+        "top_cpu_processes": top_cpu,
+        "top_memory_processes": top_mem
+    }
 
 # ----------------------- prompts ---------------------------
 
 @mcp.prompt()
-def ask_review(code_snippet: str) -> str:
-    """Generates a standard code review request."""
-    return f"Please review the following code snippet for potential bugs and style issues:\n```python\n{code_snippet}\n```"
-
-@mcp.prompt()
-def debug_session_start(error_message: str) -> list[Message]:
-    """Initiates a debugging help session."""
-    return [
-        UserMessage(f"I encountered an error:\n{error_message}"),
-        AssistantMessage("Okay, I can help with that. Can you provide the full traceback and tell me what you were trying to do?")
-    ]
-
-
-# ----------------------- context ---------------------------
-
-
-@mcp.resource("system://status")
-async def get_system_status(ctx: Context) -> dict:
-    """Checks system status and logs information."""
-    await ctx.info("Checking system status...")
-    # Perform checks
-    await ctx.report_progress(1, 1) # Report completion
-    return {"status": "OK", "load": 0.5, "client": ctx.client_id}
-
-@mcp.tool()
-async def process_large_file(file_uri: str, ctx: Context) -> str:
-    """Processes a large file, reporting progress and reading resources."""
-    await ctx.info(f"Starting processing for {file_uri}")
-    # Read the resource using the context
-    file_content_resource = await ctx.read_resource(file_uri)
-    file_content = file_content_resource[0].content # Assuming single text content
-    lines = file_content.splitlines()
-    total_lines = len(lines)
-
-    for i, line in enumerate(lines):
-        # Process line...
-        if (i + 1) % 100 == 0: # Report progress every 100 lines
-            await ctx.report_progress(i + 1, total_lines)
-
-    await ctx.info(f"Finished processing {file_uri}")
-    return f"Processed {total_lines} lines."
+def get_system_status(code_snippet: str) -> str:
+    """评估当前系统的水位状况"""
+    return f"请使用对应的工具来对当前系统的水位情况进行数据采集，并将采集得到的各种指标，基于你对于系统水位的理解（对总的资源情况和采集到的资源情况进行对比评估）来对系统水位进行评估"
 
 if __name__ == "__main__":
     mcp.run(transport='sse')
