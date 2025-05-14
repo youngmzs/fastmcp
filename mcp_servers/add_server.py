@@ -50,7 +50,7 @@ def get_system_overview() -> dict:
     }
 
 @mcp.tool()
-def get_top_processes() -> dict:
+def get_top5_processes() -> dict:
     """
     获取CPU使用率最高的前五个进程及其使用率。
     """
